@@ -1,4 +1,4 @@
-property blacklisted_sender : "+1234567890" -- Replace with the blacklisted number/email
+property blacklisted_senders : {"+1234567890", "badguy@example.com"} -- Add all blacklisted numbers/emails to this list
 property auto_reply_text : "This is an automated reply. Please do not contact me."
 
 -- This allows you to test the script directly in Script Editor by clicking "Play"
@@ -26,23 +26,36 @@ on check_messages()
 					-- In newer macOS, we get the participants of the chat
 					set chatParticipants to participants of aChat
 					
-					-- Check each participant in the chat
-					repeat with aParticipant in chatParticipants
-						set sender_id to handle of aParticipant
+					-- Exclude group chats: Only process if it's a 1-on-1 direct message (exactly 1 participant)
+					if (count of chatParticipants) is 1 then
 						
-						-- Check if the participant is the blacklisted sender
-						if sender_id contains blacklisted_sender then
+						-- Check the single participant in the direct chat
+						repeat with aParticipant in chatParticipants
+							set sender_id to handle of aParticipant
 							
-							-- Auto reply
-							send auto_reply_text to aParticipant
+							-- Check if the participant is in the blacklist
+							set is_blacklisted to false
+							repeat with blacklisted in blacklisted_senders
+								if sender_id contains blacklisted then
+									set is_blacklisted to true
+									exit repeat
+								end if
+							end repeat
 							
-							-- Call the GUI script to delete
-							my delete_chat_via_gui(aChat)
-							
-							-- Exit the participant loop since we found a match
-							exit repeat 
-						end if
-					end repeat
+							if is_blacklisted then
+								
+								-- Auto reply
+								send auto_reply_text to aParticipant
+								
+								-- Call the GUI script to delete
+								my delete_chat_via_gui(aChat)
+								
+								-- Exit the participant loop since we found a match
+								exit repeat 
+							end if
+						end repeat
+						
+					end if
 					
 				on error errMsg
 					-- Silently continue if a chat's properties can't be read
